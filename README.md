@@ -27,6 +27,7 @@ MoonSharp generally provides good speed but incurs significant allocations due t
 * Support for exception handling with try-catch
 * High-performance implementation utilizing modern C#
 * Unity support (works with both Mono and IL2CPP)
+* Godot support
 
 ## Installation
 
@@ -69,7 +70,7 @@ Lua-CSharp can also be used in Godot.
 ### Installation
 
 1. Open the NuGet window in visual studio by going to `Project > Manage NuGet Packages`, search for the `LuaCSharp` package, and install it.
-2. Edit your project (<projectname>.csproj) and instead of 
+2. To avoid compilation error in Godot edit your project (<projectname>.csproj) and instead of 
 ```xml
 <PackageReference Include="LuaCSharp" Version="3.1.0"/>
 ```
