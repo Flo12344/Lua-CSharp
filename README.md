@@ -59,6 +59,25 @@ Lua-CSharp can also be used in Unity (works with both Mono and IL2CPP).
 1. Install [NugetForUnity](https://github.com/GlitchEnzo/NuGetForUnity).
 2. Open the NuGet window by going to `NuGet > Manage NuGet Packages`, search for the `LuaCSharp` package, and install it.
 
+### Godot
+Lua-CSharp can also be used in Godot.
+
+### Requirements
+
+* Godot mono
+
+### Installation
+
+1. Open the NuGet window in visual studio by going to `Project > Manage NuGet Packages`, search for the `LuaCSharp` package, and install it.
+2. Edit your project (<projectname>.csproj) and instead of 
+'''<PackageReference Include="LuaCSharp" Version="3.1.0"/>'''
+use
+'''
+<PackageReference Include="LuaCSharp">
+ <Version>0.3.1</Version>
+</PackageReference>
+'''
+
 ## Quick Start
 
 By using the `LuaState` class, you can execute Lua scripts from C#. Below is a sample code that evaluates a simple calculation written in Lua.
