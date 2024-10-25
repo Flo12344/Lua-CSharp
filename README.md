@@ -1,6 +1,6 @@
 # Lua-CSharp
 
-High performance Lua interpreter implemented in C# for .NET and Unity
+High performance Lua interpreter implemented in C# for .NET, Unity and Godot
 
 ![img](docs/Header.png)
 
