@@ -70,13 +70,15 @@ Lua-CSharp can also be used in Godot.
 
 1. Open the NuGet window in visual studio by going to `Project > Manage NuGet Packages`, search for the `LuaCSharp` package, and install it.
 2. Edit your project (<projectname>.csproj) and instead of 
-'''<PackageReference Include="LuaCSharp" Version="3.1.0"/>'''
+```xml
+<PackageReference Include="LuaCSharp" Version="3.1.0"/>
+```
 use
-'''
+```xml
 <PackageReference Include="LuaCSharp">
  <Version>0.3.1</Version>
 </PackageReference>
-'''
+```
 
 ## Quick Start
 
