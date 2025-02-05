@@ -52,25 +52,8 @@ Install-Package LuaCSharp
 You can also use Lua-CSharp with Unity. For details, see the [Lua.Unity](#luaunity) section.
 
 ### Godot
-Lua-CSharp can also be used in Godot.
+You can also use Lua-CSharp with Godot. For details, see the [Godot](#luagodot) section.
 
-### Requirements
-
-* Godot mono
-
-### Installation
-
-1. Open the NuGet window in visual studio by going to `Project > Manage NuGet Packages`, search for the `LuaCSharp` package, and install it.
-2. To avoid compilation error in Godot edit your project (<projectname>.csproj) and instead of 
-```xml
-<PackageReference Include="LuaCSharp" Version="3.1.0"/>
-```
-use
-```xml
-<PackageReference Include="LuaCSharp">
- <Version>0.3.1</Version>
-</PackageReference>
-```
 
 ## Quick Start
 
@@ -543,6 +526,27 @@ state.ModuleLoader = new ResourcesModuleLoader();
 
 // Use Addressables for module loading (requires the Addressables package)
 state.ModuleLoader = new AddressablesModuleLoader();
+```
+
+## Lua.Godot
+Lua-CSharp can also be used in Godot.
+
+### Requirements
+
+* Godot mono
+
+### Installation
+
+1. Open the NuGet window in visual studio by going to `Project > Manage NuGet Packages`, search for the `LuaCSharp` package, and install it.
+2. To avoid compilation error in Godot edit your project (<projectname>.csproj) and instead of 
+```xml
+<PackageReference Include="LuaCSharp" Version="3.1.0"/>
+```
+use
+```xml
+<PackageReference Include="LuaCSharp">
+ <Version>0.4.2</Version>
+</PackageReference>
 ```
 
 ## Compatibility
