@@ -4,7 +4,16 @@ using Lua.Runtime;
 
 namespace Lua;
 
-public class LuaException(string message) : Exception(message);
+public class LuaException : Exception
+{
+    protected LuaException(Exception innerException) : base(innerException.Message, innerException)
+    {
+    }
+
+    public LuaException(string message) : base(message)
+    {
+    }
+}
 
 public class LuaParseException(string? chunkName, SourcePosition position, string message) : LuaException(message)
 {
@@ -44,9 +53,27 @@ public class LuaParseException(string? chunkName, SourcePosition position, strin
     public override string Message => $"{ChunkName}:{(Position == null ? "" : $"{Position.Value}:")} {base.Message}";
 }
 
-public class LuaRuntimeException(Traceback traceback, string message) : LuaException(message)
+public class LuaRuntimeException : LuaException
 {
-    public Traceback LuaTraceback { get; } = traceback;
+    public LuaRuntimeException(Traceback traceback, Exception innerException) : base(innerException)
+    {
+        LuaTraceback = traceback;
+    }
+
+    public LuaRuntimeException(Traceback traceback, string message) : base(message)
+    {
+        LuaTraceback = traceback;
+    }
+
+    public LuaRuntimeException(Traceback traceback, LuaValue errorObject): base(errorObject.ToString())
+    {
+        LuaTraceback = traceback;
+        ErrorObject = errorObject;
+    }
+
+    public Traceback LuaTraceback { get; }
+
+    public LuaValue? ErrorObject { get; }
 
     public static void AttemptInvalidOperation(Traceback traceback, string op, LuaValue a, LuaValue b)
     {
@@ -73,11 +100,16 @@ public class LuaRuntimeException(Traceback traceback, string message) : LuaExcep
         throw new LuaRuntimeException(traceback, $"bad argument #{argumentId} to '{functionName}' ({expected} expected, got {actual})");
     }
 
+    public static void BadArgumentNumberIsNotInteger(Traceback traceback, int argumentId, string functionName)
+    {
+        throw new LuaRuntimeException(traceback, $"bad argument #{argumentId} to '{functionName}' (number has no integer representation)");
+    }
+
     public static void ThrowBadArgumentIfNumberIsNotInteger(LuaState state, string functionName, int argumentId, double value)
     {
         if (!MathEx.IsInteger(value))
         {
-            throw new LuaRuntimeException(state.GetTraceback(), $"bad argument #{argumentId} to '{functionName}' (number has no integer representation)");
+            BadArgumentNumberIsNotInteger(state.GetTraceback(), argumentId, functionName);
         }
     }
 

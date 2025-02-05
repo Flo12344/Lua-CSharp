@@ -42,7 +42,20 @@ public sealed class UpValue
         }
         else
         {
-            return Thread!.Stack.UnsafeGet(RegisterIndex);
+            return Thread!.Stack.Get(RegisterIndex);
+        }
+    }
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal ref readonly LuaValue GetValueRef()
+    {
+        if (IsClosed)
+        {
+            return ref value;
+        }
+        else
+        {
+            return ref Thread!.Stack.Get(RegisterIndex);
         }
     }
 
@@ -55,7 +68,7 @@ public sealed class UpValue
         }
         else
         {
-            Thread!.Stack.UnsafeGet(RegisterIndex) = value;
+            Thread!.Stack.Get(RegisterIndex) = value;
         }
     }
 
@@ -64,7 +77,7 @@ public sealed class UpValue
     {
         if (!IsClosed)
         {
-            value = Thread!.Stack.UnsafeGet(RegisterIndex);
+            value = Thread!.Stack.Get(RegisterIndex);
         }
 
         IsClosed = true;

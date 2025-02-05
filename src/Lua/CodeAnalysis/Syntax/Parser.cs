@@ -309,22 +309,20 @@ public ref struct Parser
                     MoveNextWithValidation(ref enumerator);
                     enumerator.SkipEoL();
 
-                    // skip 'then' keyword
-                    CheckCurrentAndSkip(ref enumerator, SyntaxTokenType.Then, out _);
-                    enumerator.SkipEoL();
+                    // check 'then' keyword
+                    CheckCurrent(ref enumerator, SyntaxTokenType.Then);
 
                     // set elseif state
                     state = 1;
+
+                    continue;
                 }
                 else if (tokenType is SyntaxTokenType.Else)
                 {
-                    // skip 'else' keywords
-                    MoveNextWithValidation(ref enumerator);
-
-                    enumerator.SkipEoL();
-
                     // set else state
                     state = 2;
+
+                    continue;
                 }
                 else if (tokenType is SyntaxTokenType.End)
                 {
@@ -599,10 +597,11 @@ public ref struct Parser
         // binary expression
         while (true)
         {
-            var opPrecedence = GetPrecedence(enumerator.GetNext().Type);
+            var opPrecedence = GetPrecedence(enumerator.GetNext(true).Type);
             if (precedence >= opPrecedence) break;
 
             MoveNextWithValidation(ref enumerator);
+            enumerator.SkipEoL();
             result = ParseBinaryExpression(ref enumerator, opPrecedence, result);
 
             enumerator.SkipEoL();
@@ -615,7 +614,7 @@ public ref struct Parser
     {
         if (!TryParseExpression(ref enumerator, precedence, out var result))
         {
-            throw new LuaParseException(ChunkName, enumerator.Current.Position, "Unexpected token <{enumerator.Current.Type}>");
+            throw new LuaParseException(ChunkName, enumerator.Current.Position, $"Unexpected token <{enumerator.Current.Type}>");
         }
 
         return result;

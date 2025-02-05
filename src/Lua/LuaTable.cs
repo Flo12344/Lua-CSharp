@@ -16,7 +16,7 @@ public sealed class LuaTable
     }
 
     LuaValue[] array;
-    Dictionary<LuaValue, LuaValue> dictionary;
+    readonly LuaValueDictionary dictionary;
     LuaTable? metatable;
 
     public LuaValue this[LuaValue key]
@@ -31,7 +31,7 @@ public sealed class LuaTable
                 if (index > 0 && index <= array.Length)
                 {
                     // Arrays in Lua are 1-origin...
-                    return MemoryMarshalEx.UnsafeElementAt(array, index - 1);
+                    return array[index - 1];
                 }
             }
 
@@ -41,18 +41,23 @@ public sealed class LuaTable
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         set
         {
-            if (key.Type is LuaValueType.Number && double.IsNaN(key.UnsafeRead<double>()))
+            if (key.TryReadNumber(out var d))
             {
-                ThrowIndexIsNaN();
-            }
-
-            if (TryGetInteger(key, out var index))
-            {
-                if (0 < index && index <= Math.Max(array.Length * 2, 8))
+                if (double.IsNaN(d))
                 {
-                    EnsureArrayCapacity(index);
-                    MemoryMarshalEx.UnsafeElementAt(array, index - 1) = value;
-                    return;
+                    ThrowIndexIsNaN();
+                }
+
+                if (MathEx.IsInteger(d))
+                {
+                    var index = (int)d;
+                    if (0 < index && index <= Math.Max(array.Length * 2, 8))
+                    {
+                        if (array.Length < index)
+                            EnsureArrayCapacity(index);
+                        array[index - 1] = value;
+                        return;
+                    }
                 }
             }
 
@@ -62,7 +67,7 @@ public sealed class LuaTable
 
     public int HashMapCount
     {
-        get => dictionary.Count(x => x.Value.Type is not LuaValueType.Nil);
+        get => dictionary.Count - dictionary.NilCount;
     }
 
     public int ArrayLength
@@ -73,6 +78,7 @@ public sealed class LuaTable
             {
                 if (array[i].Type is LuaValueType.Nil) return i;
             }
+
             return array.Length;
         }
     }
@@ -83,6 +89,7 @@ public sealed class LuaTable
         set => metatable = value;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool TryGetValue(LuaValue key, out LuaValue value)
     {
         if (key.Type is LuaValueType.Nil)
@@ -95,12 +102,31 @@ public sealed class LuaTable
         {
             if (index > 0 && index <= array.Length)
             {
-                value = MemoryMarshalEx.UnsafeElementAt(array, index - 1);
+                value = array[index - 1];
                 return value.Type is not LuaValueType.Nil;
             }
         }
 
         return dictionary.TryGetValue(key, out value) && value.Type is not LuaValueType.Nil;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal ref LuaValue FindValue(LuaValue key)
+    {
+        if (key.Type is LuaValueType.Nil)
+        {
+            ThrowIndexIsNil();
+        }
+
+        if (TryGetInteger(key, out var index))
+        {
+            if (index > 0 && index <= array.Length)
+            {
+                return ref array[index - 1];
+            }
+        }
+
+        return ref dictionary.FindValue(key, out _);
     }
 
     public bool ContainsKey(LuaValue key)
@@ -113,7 +139,7 @@ public sealed class LuaTable
         if (TryGetInteger(key, out var index))
         {
             return index > 0 && index <= array.Length &&
-                MemoryMarshalEx.UnsafeElementAt(array, index - 1).Type != LuaValueType.Nil;
+                   array[index - 1].Type != LuaValueType.Nil;
         }
 
         return dictionary.TryGetValue(key, out var value) && value.Type is not LuaValueType.Nil;
@@ -121,20 +147,15 @@ public sealed class LuaTable
 
     public LuaValue RemoveAt(int index)
     {
-        if (index <= 0 || index > array.Length)
-        {
-            throw new IndexOutOfRangeException();
-        }
-
         var arrayIndex = index - 1;
-        var value = MemoryMarshalEx.UnsafeElementAt(array, arrayIndex);
+        var value = array[arrayIndex];
 
         if (arrayIndex < array.Length - 1)
         {
             array.AsSpan(arrayIndex + 1).CopyTo(array.AsSpan(arrayIndex));
         }
-        
-        MemoryMarshalEx.UnsafeElementAt(array, array.Length - 1) = default;
+
+        array[^1] = default;
 
         return value;
     }
@@ -147,13 +168,17 @@ public sealed class LuaTable
         }
 
         var arrayIndex = index - 1;
-        EnsureArrayCapacity(array.Length + 1);
+
+        if (index > array.Length || array[^1].Type != LuaValueType.Nil)
+        {
+            EnsureArrayCapacity(array.Length + 1);
+        }
 
         if (arrayIndex != array.Length - 1)
         {
             array.AsSpan(arrayIndex, array.Length - arrayIndex - 1).CopyTo(array.AsSpan(arrayIndex + 1));
         }
-        
+
         array[arrayIndex] = value;
     }
 
@@ -192,19 +217,9 @@ public sealed class LuaTable
         }
         else
         {
-            var foundKey = false;
-            foreach (var kv in dictionary)
+            if (dictionary.TryGetNext(key, out pair))
             {
-                if (foundKey && kv.Value.Type is not LuaValueType.Nil)
-                {
-                    pair = kv;
-                    return true;
-                }
-
-                if (kv.Key.Equals(key))
-                {
-                    foundKey = true;
-                }
+                return true;
             }
         }
 

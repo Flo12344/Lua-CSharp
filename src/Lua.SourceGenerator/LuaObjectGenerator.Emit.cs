@@ -1,11 +1,12 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Lua.SourceGenerator;
 
 partial class LuaObjectGenerator
 {
-    static bool TryEmit(TypeMetadata typeMetadata, CodeBuilder builder, SymbolReferences references, Compilation compilation, in SourceProductionContext context)
+    static bool TryEmit(TypeMetadata typeMetadata, CodeBuilder builder, SymbolReferences references, Compilation compilation, in SourceProductionContext context, Dictionary<INamedTypeSymbol, TypeMetadata> metaDict)
     {
         try
         {
@@ -41,7 +42,7 @@ partial class LuaObjectGenerator
                 error = true;
             }
 
-            if (!ValidateMembers(typeMetadata, compilation, references, context))
+            if (!ValidateMembers(typeMetadata, compilation, references, context, metaDict))
             {
                 error = true;
             }
@@ -125,7 +126,7 @@ partial class LuaObjectGenerator
         }
     }
 
-    static bool ValidateMembers(TypeMetadata typeMetadata, Compilation compilation, SymbolReferences references, in SourceProductionContext context)
+    static bool ValidateMembers(TypeMetadata typeMetadata, Compilation compilation, SymbolReferences references, in SourceProductionContext context, Dictionary<INamedTypeSymbol, TypeMetadata> metaDict)
     {
         var isValid = true;
 
@@ -135,7 +136,7 @@ partial class LuaObjectGenerator
             if (SymbolEqualityComparer.Default.Equals(property.Type, typeMetadata.Symbol)) continue;
 
             var conversion = compilation.ClassifyConversion(property.Type, references.LuaValue);
-            if (!conversion.Exists)
+            if (!conversion.Exists && (property.Type is not INamedTypeSymbol namedTypeSymbol || !metaDict.ContainsKey(namedTypeSymbol)))
             {
                 context.ReportDiagnostic(Diagnostic.Create(
                     DiagnosticDescriptors.InvalidPropertyType,
@@ -164,7 +165,7 @@ partial class LuaObjectGenerator
                 if (SymbolEqualityComparer.Default.Equals(typeSymbol, typeMetadata.Symbol)) goto PARAMETERS;
 
                 var conversion = compilation.ClassifyConversion(typeSymbol, references.LuaValue);
-                if (!conversion.Exists)
+                if (!conversion.Exists && (typeSymbol is not INamedTypeSymbol namedTypeSymbol || !metaDict.ContainsKey(namedTypeSymbol)))
                 {
                     context.ReportDiagnostic(Diagnostic.Create(
                         DiagnosticDescriptors.InvalidReturnType,
@@ -183,7 +184,7 @@ partial class LuaObjectGenerator
                 if (SymbolEqualityComparer.Default.Equals(typeSymbol, typeMetadata.Symbol)) continue;
 
                 var conversion = compilation.ClassifyConversion(typeSymbol, references.LuaValue);
-                if (!conversion.Exists)
+                if (!conversion.Exists && (typeSymbol is not INamedTypeSymbol namedTypeSymbol || !metaDict.ContainsKey(namedTypeSymbol)))
                 {
                     context.ReportDiagnostic(Diagnostic.Create(
                         DiagnosticDescriptors.InvalidParameterType,
@@ -361,7 +362,32 @@ partial class LuaObjectGenerator
 
             foreach (var parameter in methodMetadata.Symbol.Parameters)
             {
-                builder.AppendLine($"var arg{index} = context.GetArgument<{parameter.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}>({index});");
+                var isParameterLuaValue = SymbolEqualityComparer.Default.Equals(parameter.Type, references.LuaValue);
+
+                if (parameter.HasExplicitDefaultValue)
+                {
+                    var syntax = (ParameterSyntax)parameter.DeclaringSyntaxReferences[0].GetSyntax();
+
+                    if (isParameterLuaValue)
+                    {
+                        builder.AppendLine($"var arg{index} = context.HasArgument({index}) ? context.GetArgument({index}) : {syntax.Default!.Value.ToFullString()};");
+                    }
+                    else
+                    {
+                        builder.AppendLine($"var arg{index} = context.HasArgument({index}) ?  context.GetArgument<{parameter.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}>({index}) : {syntax.Default!.Value.ToFullString()};");
+                    }
+                }
+                else
+                {
+                    if (isParameterLuaValue)
+                    {
+                        builder.AppendLine($"var arg{index} = context.GetArgument({index});");
+                    }
+                    else
+                    {
+                        builder.AppendLine($"var arg{index} = context.GetArgument<{parameter.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}>({index});");
+                    }
+                }
                 index++;
             }
 
@@ -398,7 +424,7 @@ partial class LuaObjectGenerator
                 {
                     builder.AppendLine("buffer.Span[0] = new global::Lua.LuaValue(result);");
                 }
-                
+
                 builder.AppendLine($"return {(methodMetadata.IsAsync ? "1" : "new(1)")};");
             }
             else
